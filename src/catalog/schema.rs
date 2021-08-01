@@ -1,5 +1,11 @@
 use std::collections::HashMap;
 
+// See here for arrow supported data type.
+// https://docs.rs/arrow/5.0.0/arrow/datatypes/enum.DataType.html
+//
+// Also want to read Arrow physical format:
+// https://arrow.apache.org/docs/format/Columnar.html#physical-memory-layout
+
 /// A schema contains a list of columns present in the schema.
 struct Schema {
     columns: Vec<Column>,
