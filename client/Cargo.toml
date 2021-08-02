@@ -1,0 +1,11 @@
+[package]
+name = "thordb-client"
+description = "Client for ThorDB"
+version = "0.0.1"
+license = "MIT"
+edition = "2018"
+
+[dependencies]
+arrow = "5.0"
+sqlparser = "0.9.0"
+
