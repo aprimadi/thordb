@@ -10,6 +10,9 @@ use crate::transaction::Timestamp;
 ///
 /// The tick is reset every time the db is restarted.
 /// TODO: Why is this okay?
+///
+/// Transactions are removed when a write-ahead log containing the redo record 
+/// has been serialized to disk.
 struct TimestampManager {
     timestamp: AtomicU64,
     // TODO: Use more efficient data structure
