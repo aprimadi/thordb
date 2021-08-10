@@ -4,6 +4,11 @@ use sqlparser::ast::Expr;
 
 // https://docs.rs/arrow/5.0.0/arrow/record_batch/struct.RecordBatch.html
 
+/// In-memory storage engine.
+///
+///
+///
+/// TODO: Replace this to use Buffer or primitive array
 struct MemStorage {
     schema: SchemaRef,
     records: Vec<Vec<RecordBatch>>,
