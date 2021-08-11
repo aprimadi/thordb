@@ -15,7 +15,6 @@ use crate::transaction::Timestamp;
 /// has been serialized to disk.
 struct TimestampManager {
     timestamp: AtomicU64,
-    // TODO: Use more efficient data structure
     active_txn_timestamps: Mutex<HashSet<Timestamp>>,
 }
 
@@ -38,8 +37,15 @@ impl TimestampManager {
     }
 
     /// Return the oldest transaction alive begin timestamp
-    fn oldest_txn_begin_ts() -> Option<Timestamp> {
-        None
+    fn oldest_txn_begin_ts(&self) -> Option<Timestamp> {
+        let mut ts = None;
+        let txns = self.active_txn_timestamps.lock().unwrap();
+        for txn in txns.iter() {
+            if ts == None || ts.unwrap() > *txn {
+                ts = Some(*txn)
+            }
+        }
+        ts
     }
 
     fn add_txn(&mut self, ts: u64) {
