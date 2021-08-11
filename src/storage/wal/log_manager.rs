@@ -40,6 +40,22 @@ impl LogManager {
 }
 
 /// Encapsulates writing LogRecord to disk
+/// 
+/// Log format
+///
+///  --------------------------------------------------------
+/// | size_1 | log_1 | size_2 | log_2 | ... | size_N | log_N |
+///  --------------------------------------------------------
+///
+/// Explanation:
+/// The write always write the size of the log struct before the log struct 
+/// itself. This way the reader know the boundary of the next log entry to 
+/// read.
+///
+/// There might be a way to encode the size and the rest of the struct 
+/// information as part of the struct but this requires some pointer magic 
+/// that is best to avoid for now.
+///
 struct LogWriter {
     log_filepath: String,
     file: File,
@@ -69,14 +85,23 @@ impl LogWriter {
         let buf = serialize_log_record(log_record);
         self.file.write_all(&buf)
         */
-        let buf = bincode::serialize(log_record).unwrap();
-        self.file.write_all(&buf)
+        let struct_buf = bincode::serialize(log_record).unwrap();
+        let size_buf = bincode::serialize(&struct_buf.len()).unwrap();
+        println!("{}", size_buf.len());
+        println!("{}", struct_buf.len());
+        println!("{:?}", struct_buf);
+        let res: LogRecord = bincode::deserialize(&struct_buf[..]).unwrap();
+        println!("{:?}", res);
+        self.file.write_all(&size_buf)?;
+        self.file.write_all(&struct_buf)
     }
 
     fn flush(&self) {
         self.file.sync_data();
     }
 }
+
+const USIZE_LEN: usize = std::mem::size_of::<usize>();
 
 /// Encapsulates reading LogRecord from disk
 struct LogReader {
@@ -99,16 +124,24 @@ impl LogReader {
     }
 
     /// Read the next log record, returning None if EOF is reached
-    fn read(&mut self) -> Vec<LogRecord> {
-        let mut buf = Vec::<u8>::new();
-        self.file.read_to_end(&mut buf);
-        let res: Option<LogRecord> = bincode::deserialize(&buf).unwrap();
+    fn read(&mut self) -> LogRecord {
+        // Read size
+        let mut size_buf: [u8; USIZE_LEN] = [0; USIZE_LEN];
+        println!("{}", USIZE_LEN);
+        self.file.read_exact(&mut size_buf);
+        let size: usize = bincode::deserialize(&size_buf).unwrap();
+        println!("{}", size);
+
+        let mut struct_buf = vec![0u8; size];
+        self.file.read_exact(&mut struct_buf);
+        println!("{:?}", struct_buf);
+        let res: LogRecord = bincode::deserialize(&struct_buf[..]).unwrap();
         // Using unsafe memory cast operation is hard so for now just use 
         // bincode
         /*
         let res = unsafe { std::mem::transmute::<Vec<u8>, Vec<LogRecord>>(buf) };
         */
-        vec!(res.unwrap())
+        res
     }
 }
 
@@ -154,8 +187,8 @@ mod tests {
         }
 
         let mut reader = LogReader::new();
-        let read_logs = reader.read();
-        assert_eq!(read_logs, logs);
+        let log1 = reader.read();
+        assert_eq!(log1, logs[0]);
     }
 }
 
