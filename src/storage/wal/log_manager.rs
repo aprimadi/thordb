@@ -1,18 +1,24 @@
-use std::fs::File;
+use std::collections::VecDeque;
+use std::fs::{File, OpenOptions};
+use std::io::{Read, Write};
+use std::sync::Arc;
 
 use crate::storage::wal::LogRecord;
+use crate::storage::redo::RedoRecord;
+use crate::storage::slot::Slot;
 
-const BATCH_SIZE = 32;
+const BATCH_SIZE: u32 = 32;
 
 struct LogManager {
     writer: LogWriter,
-    log_queue: Queue<Arc<RedoRecord>>,
+    log_queue: VecDeque<Arc<LogRecord>>,
 }
 
 impl LogManager {
     pub fn new() -> Self {
         Self {
-            log_queue: Queue::new(),
+            writer: LogWriter::new(),
+            log_queue: VecDeque::new(),
         }
     }
 
@@ -26,9 +32,9 @@ impl LogManager {
         });
     }
 
-    fn add_to_queue(&self, logs: Vec<Arc<LogRecord>>) {
+    fn add_to_queue(&mut self, logs: Vec<Arc<LogRecord>>) {
         for log in logs {
-            self.log_queue.add(log);
+            self.log_queue.push_back(log);
         }
     }
 }
@@ -42,14 +48,14 @@ struct LogWriter {
 impl LogWriter {
     fn new() -> Self {
         // TODO: Don't hardcode log path
-        with_path(String::from("wal.log"))
+        Self::with_path(String::from("wal.log"))
     }
 
     fn with_path(log_filepath: String) -> Self {
-        let file = File::with_options()
+        let file = OpenOptions::new() 
             .append(true)
             .create(true)
-            .open(log_filepath)
+            .open(&log_filepath)
             .unwrap();
         Self {
             log_filepath,
@@ -57,14 +63,14 @@ impl LogWriter {
         }
     }
 
-    fn write(&self, log_record: &LogRecord) -> Result<usize> {
-        let buf = self.serialize(log_record);
+    fn write(&mut self, log_record: &LogRecord) -> std::io::Result<()> {
+        // Using unsafe memory cast is hard so for now just use bincode
+        /*
+        let buf = serialize_log_record(log_record);
         self.file.write_all(&buf)
-    }
-
-    fn serialize(&self, log_record: &LogRecord) -> &[u8] {
-        let bytes = unsafe { std::mem::transmute::<&LogRecord, &[u8]>(log_record) }
-        bytes
+        */
+        let buf = bincode::serialize(log_record).unwrap();
+        self.file.write_all(&buf)
     }
 
     fn flush(&self) {
@@ -81,11 +87,11 @@ struct LogReader {
 impl LogReader {
     fn new() -> Self {
         // TODO: Don't hardcode log path
-        with_path(String::from("wal.log"))
+        Self::with_path(String::from("wal.log"))
     }
 
     fn with_path(log_filepath: String) -> Self {
-        let file = File::open(log_filepath).unwrap();
+        let file = File::open(&log_filepath).unwrap();
         Self {
             log_filepath,
             file,
@@ -93,9 +99,63 @@ impl LogReader {
     }
 
     /// Read the next log record, returning None if EOF is reached
-    fn read(&self) -> Option<LogRecord> {
-        // TODO
-        None
+    fn read(&mut self) -> Vec<LogRecord> {
+        let mut buf = Vec::<u8>::new();
+        self.file.read_to_end(&mut buf);
+        let res: Option<LogRecord> = bincode::deserialize(&buf).unwrap();
+        // Using unsafe memory cast operation is hard so for now just use 
+        // bincode
+        /*
+        let res = unsafe { std::mem::transmute::<Vec<u8>, Vec<LogRecord>>(buf) };
+        */
+        vec!(res.unwrap())
+    }
+}
+
+fn serialize_log_record(log_record: &LogRecord) -> &[u8] {
+    let bytes = unsafe { any_as_u8_slice(log_record) };
+    bytes
+}
+
+unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
+    ::std::slice::from_raw_parts(
+        (p as *const T) as *const u8,
+        ::std::mem::size_of::<T>(),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use arrow::datatypes::{DataType, Field, Schema};
+
+    use super::*;
+
+    #[test]
+    fn write_and_read_log() {
+        let schema = Schema::new(vec![
+            Field::new("a", DataType::Int64, false),
+            Field::new("b", DataType::Boolean, false),
+        ]);
+        let logs = [
+            LogRecord::Redo(RedoRecord {
+                schema: Arc::new(schema),
+                slot: Slot {
+                    block_id: 1,
+                    offset: 1,
+                },
+                content: vec![0, 1, 2, 3],
+            }),
+        ];
+
+        {
+            let mut writer = LogWriter::new();
+            writer.write(&logs[0]);
+            writer.flush();
+        }
+
+        let mut reader = LogReader::new();
+        let read_logs = reader.read();
+        assert_eq!(read_logs, logs);
     }
 }
 

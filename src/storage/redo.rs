@@ -1,4 +1,5 @@
 use arrow::datatypes::SchemaRef;
+use serde::{Serialize, Deserialize};
 
 use crate::storage::slot::Slot;
 
@@ -9,8 +10,10 @@ struct RedoBuffer {
 impl RedoBuffer {
 }
 
-struct RedoRecord {
-    schema: SchemaRef,
-    slot: Slot,
-    content: Vec<u8>,
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct RedoRecord {
+    pub schema: SchemaRef,
+    pub slot: Slot,
+    pub content: Vec<u8>,
 }
+

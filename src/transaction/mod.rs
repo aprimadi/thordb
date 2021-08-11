@@ -3,4 +3,4 @@ mod manager;
 
 pub use ctx::TransactionContext;
 
-type Timestamp = u64;
+pub type Timestamp = u64;
