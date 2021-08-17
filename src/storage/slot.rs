@@ -1,10 +1,33 @@
-use serde::{Serialize, Deserialize};
+use std::io::Cursor;
+
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+
+use crate::storage::serde::{
+    Serialize, Deserialize, 
+    MSG_SERIALIZE_ERROR, MSG_DESERIALIZE_ERROR
+};
 
 /// A slot encapsulates block id and offset position. See memory.rs for how 
 /// data are stored in 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq)]
 pub struct Slot {
     pub block_id: u32,
     pub offset: u32,
+}
+
+impl Serialize for Slot {
+    fn serialize(&self) -> Vec<u8> {
+        let res = Vec::new();
+        res.write_u32::<BigEndian>(self.block_id).expect(MSG_SERIALIZE_ERROR);
+        res.write_u32::<BigEndian>(self.offset).expect(MSG_SERIALIZE_ERROR);
+        res
+    }
+}
+
+impl Deserialize for Slot {
+    fn deserialize(&mut self, rdr: Cursor<Vec<u8>>) {
+        self.block_id = rdr.read_u32::<BigEndian>().expect(MSG_DESERIALIZE_ERROR);
+        self.offset = rdr.read_u32::<BigEndian>().expect(MSG_DESERIALIZE_ERROR);
+    }
 }
 

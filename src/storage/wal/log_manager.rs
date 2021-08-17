@@ -11,6 +11,7 @@ const BATCH_SIZE: u32 = 32;
 
 struct LogManager {
     writer: LogWriter,
+    /// TODO: Write doc on why we need to use Arc for LogRecord?
     log_queue: VecDeque<Arc<LogRecord>>,
 }
 
@@ -87,11 +88,7 @@ impl LogWriter {
         */
         let struct_buf = bincode::serialize(log_record).unwrap();
         let size_buf = bincode::serialize(&struct_buf.len()).unwrap();
-        println!("{}", size_buf.len());
-        println!("{}", struct_buf.len());
-        println!("{:?}", struct_buf);
         let res: LogRecord = bincode::deserialize(&struct_buf[..]).unwrap();
-        println!("{:?}", res);
         self.file.write_all(&size_buf)?;
         self.file.write_all(&struct_buf)
     }
@@ -127,14 +124,11 @@ impl LogReader {
     fn read(&mut self) -> LogRecord {
         // Read size
         let mut size_buf: [u8; USIZE_LEN] = [0; USIZE_LEN];
-        println!("{}", USIZE_LEN);
         self.file.read_exact(&mut size_buf);
         let size: usize = bincode::deserialize(&size_buf).unwrap();
-        println!("{}", size);
 
         let mut struct_buf = vec![0u8; size];
         self.file.read_exact(&mut struct_buf);
-        println!("{:?}", struct_buf);
         let res: LogRecord = bincode::deserialize(&struct_buf[..]).unwrap();
         // Using unsafe memory cast operation is hard so for now just use 
         // bincode
