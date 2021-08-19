@@ -39,11 +39,10 @@ impl Serialize for DeleteRecord {
 }
 
 impl Deserialize for DeleteRecord {
-    fn deserialize(&mut self, rdr: Cursor<Vec<u8>>) {
+    fn deserialize(&mut self, rdr: &mut Cursor<Vec<u8>>) {
         self.db_oid = rdr.read_u64::<BigEndian>().expect(MSG_DESERIALIZE_ERROR);
         self.table_oid = rdr.read_u64::<BigEndian>().expect(MSG_DESERIALIZE_ERROR);
-        let pos = rdr.position();
-        // TODO
+        self.slot.deserialize(rdr);
     }
 }
 
@@ -56,7 +55,7 @@ pub struct CommitRecord {
 
 impl Serialize for CommitRecord {
     fn serialize(&self) -> Vec<u8> {
-        let res = Vec::new();
+        let mut res = Vec::new();
         res.write_u64::<BigEndian>(self.begin_ts).expect(MSG_SERIALIZE_ERROR);
         res.write_u64::<BigEndian>(self.commit_ts).expect(MSG_SERIALIZE_ERROR);
         if self.read_only_txn {
@@ -69,7 +68,7 @@ impl Serialize for CommitRecord {
 }
 
 impl Deserialize for CommitRecord {
-    fn deserialize(&mut self, rdr: Cursor<Vec<u8>>) {
+    fn deserialize(&mut self, rdr: &mut Cursor<Vec<u8>>) {
         self.begin_ts = rdr.read_u64::<BigEndian>().expect(MSG_DESERIALIZE_ERROR);
         self.commit_ts = rdr.read_u64::<BigEndian>().expect(MSG_DESERIALIZE_ERROR);
         let txn_bit = rdr.read_u8().expect(MSG_DESERIALIZE_ERROR);
@@ -90,7 +89,7 @@ impl Serialize for AbortRecord {
 }
 
 impl Deserialize for AbortRecord {
-    fn deserialize(&mut self, bytes: Cursor<Vec<u8>>) {
+    fn deserialize(&mut self, bytes: &mut Cursor<Vec<u8>>) {
         // Nothing since nothing is stored
     }
 }

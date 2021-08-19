@@ -17,7 +17,7 @@ pub struct Slot {
 
 impl Serialize for Slot {
     fn serialize(&self) -> Vec<u8> {
-        let res = Vec::new();
+        let mut res = Vec::new();
         res.write_u32::<BigEndian>(self.block_id).expect(MSG_SERIALIZE_ERROR);
         res.write_u32::<BigEndian>(self.offset).expect(MSG_SERIALIZE_ERROR);
         res
@@ -25,7 +25,7 @@ impl Serialize for Slot {
 }
 
 impl Deserialize for Slot {
-    fn deserialize(&mut self, rdr: Cursor<Vec<u8>>) {
+    fn deserialize(&mut self, rdr: &mut Cursor<Vec<u8>>) {
         self.block_id = rdr.read_u32::<BigEndian>().expect(MSG_DESERIALIZE_ERROR);
         self.offset = rdr.read_u32::<BigEndian>().expect(MSG_DESERIALIZE_ERROR);
     }

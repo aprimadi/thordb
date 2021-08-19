@@ -3,7 +3,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::sync::Arc;
 
-use crate::storage::wal::LogRecord;
+use crate::storage::wal::{LogRecord, AbortRecord};
 use crate::storage::redo::RedoRecord;
 use crate::storage::slot::Slot;
 
@@ -57,6 +57,9 @@ impl LogManager {
 /// information as part of the struct but this requires some pointer magic 
 /// that is best to avoid for now.
 ///
+/// When serializing log record to file, whenever there is a choice between 
+/// big-endian and little-endian, we always choose big-endian.
+///
 struct LogWriter {
     log_filepath: String,
     file: File,
@@ -81,16 +84,32 @@ impl LogWriter {
     }
 
     fn write(&mut self, log_record: &LogRecord) -> std::io::Result<()> {
+        /*
+        match log_record {
+            LogRecord::Redo(rec) => {
+                // TODO
+            }
+            LogRecord::Delete(rec) => {
+            }
+            LogRecord::Commit(rec) => {
+            }
+            LogRecord::Abort(rec) => {
+            }
+        }
+        */
         // Using unsafe memory cast is hard so for now just use bincode
         /*
         let buf = serialize_log_record(log_record);
         self.file.write_all(&buf)
         */
+        /*
         let struct_buf = bincode::serialize(log_record).unwrap();
         let size_buf = bincode::serialize(&struct_buf.len()).unwrap();
         let res: LogRecord = bincode::deserialize(&struct_buf[..]).unwrap();
         self.file.write_all(&size_buf)?;
         self.file.write_all(&struct_buf)
+        */
+        Ok(())
     }
 
     fn flush(&self) {
@@ -122,6 +141,7 @@ impl LogReader {
 
     /// Read the next log record, returning None if EOF is reached
     fn read(&mut self) -> LogRecord {
+        /*
         // Read size
         let mut size_buf: [u8; USIZE_LEN] = [0; USIZE_LEN];
         self.file.read_exact(&mut size_buf);
@@ -136,6 +156,8 @@ impl LogReader {
         let res = unsafe { std::mem::transmute::<Vec<u8>, Vec<LogRecord>>(buf) };
         */
         res
+        */
+        LogRecord::Abort(AbortRecord {})
     }
 }
 
