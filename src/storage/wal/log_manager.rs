@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use crate::storage::wal::{LogRecord, AbortRecord};
 use crate::storage::redo::RedoRecord;
+use crate::storage::serde::Serialize;
 use crate::storage::slot::Slot;
 
 const BATCH_SIZE: u32 = 32;
@@ -84,19 +85,24 @@ impl LogWriter {
     }
 
     fn write(&mut self, log_record: &LogRecord) -> std::io::Result<()> {
-        /*
         match log_record {
             LogRecord::Redo(rec) => {
-                // TODO
+                let buf = rec.serialize();
+                self.file.write_all(&buf)?;
             }
             LogRecord::Delete(rec) => {
+                let buf = rec.serialize();
+                self.file.write_all(&buf)?;
             }
             LogRecord::Commit(rec) => {
+                let buf = rec.serialize();
+                self.file.write_all(&buf)?;
             }
             LogRecord::Abort(rec) => {
+                let buf = rec.serialize();
+                self.file.write_all(&buf)?;
             }
         }
-        */
         // Using unsafe memory cast is hard so for now just use bincode
         /*
         let buf = serialize_log_record(log_record);
@@ -187,7 +193,8 @@ mod tests {
         ]);
         let logs = [
             LogRecord::Redo(RedoRecord {
-                schema: Arc::new(schema),
+                db_oid: 1,
+                table_oid: 1,
                 slot: Slot {
                     block_id: 1,
                     offset: 1,

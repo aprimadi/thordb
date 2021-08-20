@@ -1,3 +1,4 @@
+use std::convert::{TryFrom, TryInto};
 use std::io::Cursor;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -12,12 +13,61 @@ use crate::storage::serde::{
 };
 use crate::transaction::Timestamp;
 
+enum LogRecordType {
+    Redo = 1,
+    Delete,
+    Commit,
+    Abort,
+}
+
+impl TryFrom<u8> for LogRecordType {
+    type Error = ();
+
+    fn try_from(v: u8) -> Result<Self, Self::Error> {
+        match v {
+            x if x == LogRecordType::Redo as u8     => Ok(LogRecordType::Redo),
+            x if x == LogRecordType::Delete as u8   => Ok(LogRecordType::Delete),
+            x if x == LogRecordType::Commit as u8   => Ok(LogRecordType::Commit),
+            x if x == LogRecordType::Abort as u8    => Ok(LogRecordType::Abort),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum LogRecord {
     Redo(RedoRecord),
     Delete(DeleteRecord),
     Commit(CommitRecord),
     Abort(AbortRecord),
+}
+
+impl LogRecord {
+    fn deserialize(bytes: Vec<u8>) -> LogRecord {
+        let mut rdr = Cursor::new(bytes);
+        let lr_type: LogRecordType = rdr.read_u8().expect(MSG_DESERIALIZE_ERROR)
+            .try_into().unwrap();
+        // TODO: Implement deserialize
+        match lr_type {
+            LogRecordType::Redo => {
+            },
+            LogRecordType::Delete => {
+            },
+            LogRecordType::Commit => {
+            },
+            LogRecordType::Abort => {
+            },
+        }
+        LogRecord::Abort(AbortRecord {})
+    }
+}
+
+impl Serialize for LogRecord {
+    fn serialize(&self) -> Vec<u8> {
+        let mut res = Vec::new();
+        // TODO: Implement serialize
+        res
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -93,3 +143,4 @@ impl Deserialize for AbortRecord {
         // Nothing since nothing is stored
     }
 }
+
