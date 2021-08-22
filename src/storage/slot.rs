@@ -15,6 +15,15 @@ pub struct Slot {
     pub offset: u32,
 }
 
+impl Slot {
+    pub fn empty() -> Self {
+        Self {
+            block_id: 0,
+            offset: 0,
+        }
+    }
+}
+
 impl Serialize for Slot {
     fn serialize(&self) -> Vec<u8> {
         let mut res = Vec::new();

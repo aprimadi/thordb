@@ -25,6 +25,17 @@ pub struct RedoRecord {
     pub content: Vec<u8>,
 }
 
+impl RedoRecord {
+    pub fn empty() -> Self {
+        Self {
+            db_oid: 0,
+            table_oid: 0,
+            slot: Slot::empty(),
+            content: Vec::new(),
+        }
+    }
+}
+
 impl Serialize for RedoRecord {
     fn serialize(&self) -> Vec<u8> {
         let mut res = Vec::new();

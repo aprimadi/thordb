@@ -45,27 +45,59 @@ pub enum LogRecord {
 impl LogRecord {
     fn deserialize(bytes: Vec<u8>) -> LogRecord {
         let mut rdr = Cursor::new(bytes);
-        let lr_type: LogRecordType = rdr.read_u8().expect(MSG_DESERIALIZE_ERROR)
-            .try_into().unwrap();
+        let lr_type: u8 = rdr.read_u8().expect(MSG_DESERIALIZE_ERROR);
+        let lr_type: LogRecordType = lr_type.try_into().unwrap();
         // TODO: Implement deserialize
         match lr_type {
             LogRecordType::Redo => {
+                let mut redo = RedoRecord::empty();
+                redo.deserialize(&mut rdr);
+                LogRecord::Redo(redo)
             },
             LogRecordType::Delete => {
+                let mut delete = DeleteRecord::empty();
+                delete.deserialize(&mut rdr);
+                LogRecord::Delete(delete)
             },
             LogRecordType::Commit => {
+                let mut commit = CommitRecord::empty();
+                commit.deserialize(&mut rdr);
+                LogRecord::Commit(commit)
             },
             LogRecordType::Abort => {
+                let mut abort = AbortRecord::empty();
+                abort.deserialize(&mut rdr);
+                LogRecord::Abort(abort)
             },
         }
-        LogRecord::Abort(AbortRecord {})
     }
 }
 
 impl Serialize for LogRecord {
     fn serialize(&self) -> Vec<u8> {
         let mut res = Vec::new();
-        // TODO: Implement serialize
+        match &self {
+            LogRecord::Redo(rec) => {
+                res.write_u8(LogRecordType::Redo as u8).expect(MSG_SERIALIZE_ERROR);
+                let mut bytes = rec.serialize();
+                res.append(&mut bytes);
+            },
+            LogRecord::Delete(rec) => {
+                res.write_u8(LogRecordType::Delete as u8).expect(MSG_SERIALIZE_ERROR);
+                let mut bytes = rec.serialize();
+                res.append(&mut bytes);
+            },
+            LogRecord::Commit(rec) => {
+                res.write_u8(LogRecordType::Commit as u8).expect(MSG_SERIALIZE_ERROR);
+                let mut bytes = rec.serialize();
+                res.append(&mut bytes);
+            },
+            LogRecord::Abort(rec) => {
+                res.write_u8(LogRecordType::Abort as u8).expect(MSG_SERIALIZE_ERROR);
+                let mut bytes = rec.serialize();
+                res.append(&mut bytes);
+            }
+        }
         res
     }
 }
@@ -75,6 +107,16 @@ pub struct DeleteRecord {
     db_oid: u64,
     table_oid: u64,
     slot: Slot,
+}
+
+impl DeleteRecord {
+    fn empty() -> Self {
+        Self {
+            db_oid: 0,
+            table_oid: 0,
+            slot: Slot::empty(),
+        }
+    }
 }
 
 impl Serialize for DeleteRecord {
@@ -101,6 +143,16 @@ pub struct CommitRecord {
     begin_ts: Timestamp,
     commit_ts: Timestamp,
     read_only_txn: bool,
+}
+
+impl CommitRecord {
+    pub fn empty() -> Self {
+        Self {
+            begin_ts: 0,
+            commit_ts: 0,
+            read_only_txn: false,
+        }
+    }
 }
 
 impl Serialize for CommitRecord {
@@ -131,6 +183,12 @@ impl Deserialize for CommitRecord {
 pub struct AbortRecord {
 }
 
+impl AbortRecord {
+    pub fn empty() -> Self {
+        Self {}
+    }
+}
+
 impl Serialize for AbortRecord {
     fn serialize(&self) -> Vec<u8> {
         let res = Vec::new();
@@ -141,6 +199,20 @@ impl Serialize for AbortRecord {
 impl Deserialize for AbortRecord {
     fn deserialize(&mut self, bytes: &mut Cursor<Vec<u8>>) {
         // Nothing since nothing is stored
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn log_record_serialize() {
+        let commit = CommitRecord { begin_ts: 1, commit_ts: 2, read_only_txn: true };
+        let log_record = LogRecord::Commit(commit);
+        let res = log_record.serialize();
+        let expected: Vec<u8> = vec!(3, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 1);
+        assert_eq!(res, expected);
     }
 }
 

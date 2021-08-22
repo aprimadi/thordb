@@ -1,11 +1,11 @@
 use std::collections::VecDeque;
 use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
+use std::io::{Cursor, Read, Write};
 use std::sync::Arc;
 
 use crate::storage::wal::{LogRecord, AbortRecord};
 use crate::storage::redo::RedoRecord;
-use crate::storage::serde::Serialize;
+use crate::storage::serde::{Serialize, serialize_u8_vec, serialize_usize, deserialize_usize};
 use crate::storage::slot::Slot;
 
 const BATCH_SIZE: u32 = 32;
@@ -85,24 +85,10 @@ impl LogWriter {
     }
 
     fn write(&mut self, log_record: &LogRecord) -> std::io::Result<()> {
-        match log_record {
-            LogRecord::Redo(rec) => {
-                let buf = rec.serialize();
-                self.file.write_all(&buf)?;
-            }
-            LogRecord::Delete(rec) => {
-                let buf = rec.serialize();
-                self.file.write_all(&buf)?;
-            }
-            LogRecord::Commit(rec) => {
-                let buf = rec.serialize();
-                self.file.write_all(&buf)?;
-            }
-            LogRecord::Abort(rec) => {
-                let buf = rec.serialize();
-                self.file.write_all(&buf)?;
-            }
-        }
+        let mut res = Vec::new();
+        let buf = log_record.serialize();
+        serialize_u8_vec(&mut res, &buf);
+        self.file.write_all(&res)?;
         // Using unsafe memory cast is hard so for now just use bincode
         /*
         let buf = serialize_log_record(log_record);
@@ -147,23 +133,20 @@ impl LogReader {
 
     /// Read the next log record, returning None if EOF is reached
     fn read(&mut self) -> LogRecord {
-        /*
-        // Read size
         let mut size_buf: [u8; USIZE_LEN] = [0; USIZE_LEN];
         self.file.read_exact(&mut size_buf);
-        let size: usize = bincode::deserialize(&size_buf).unwrap();
+        let size: usize = deserialize_usize(&mut Cursor::new(size_buf.to_vec()));
 
         let mut struct_buf = vec![0u8; size];
         self.file.read_exact(&mut struct_buf);
-        let res: LogRecord = bincode::deserialize(&struct_buf[..]).unwrap();
+        let res = LogRecord::deserialize(struct_buf);
+        res
+
         // Using unsafe memory cast operation is hard so for now just use 
         // bincode
         /*
         let res = unsafe { std::mem::transmute::<Vec<u8>, Vec<LogRecord>>(buf) };
         */
-        res
-        */
-        LogRecord::Abort(AbortRecord {})
     }
 }
 
@@ -187,6 +170,7 @@ mod tests {
 
     #[test]
     fn write_and_read_log() {
+        // TODO: Use dummy file
         let schema = Schema::new(vec![
             Field::new("a", DataType::Int64, false),
             Field::new("b", DataType::Boolean, false),
